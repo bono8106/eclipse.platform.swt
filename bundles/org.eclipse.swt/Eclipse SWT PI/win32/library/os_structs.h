@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -1893,6 +1893,18 @@ void setTOUCHINPUTFields(JNIEnv *env, jobject lpObject, TOUCHINPUT *lpStruct);
 #define getTOUCHINPUTFields(a,b,c) NULL
 #define setTOUCHINPUTFields(a,b,c)
 #define TOUCHINPUT_sizeof() 0
+#endif
+
+#ifndef NO_TPMPARAMS
+void cacheTPMPARAMSFields(JNIEnv *env, jobject lpObject);
+TPMPARAMS *getTPMPARAMSFields(JNIEnv *env, jobject lpObject, TPMPARAMS *lpStruct);
+void setTPMPARAMSFields(JNIEnv *env, jobject lpObject, TPMPARAMS *lpStruct);
+#define TPMPARAMS_sizeof() sizeof(TPMPARAMS)
+#else
+#define cacheTPMPARAMSFields(a,b)
+#define getTPMPARAMSFields(a,b,c) NULL
+#define setTPMPARAMSFields(a,b,c)
+#define TPMPARAMS_sizeof() 0
 #endif
 
 #ifndef NO_TRACKMOUSEEVENT

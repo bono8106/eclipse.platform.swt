@@ -50,6 +50,7 @@ public class ToolBar extends Composite {
 	ToolItem [] tabItemList;
 	boolean ignoreResize, ignoreMouse;
 	ImageList imageList, disabledImageList, hotImageList;
+	boolean showingPushItemMenu;
 	static final long /*int*/ ToolBarProc;
 	static final TCHAR ToolBarClass = new TCHAR (0, OS.TOOLBARCLASSNAME, true);
 	static {
@@ -1233,6 +1234,9 @@ long /*int*/ windowProc () {
 }
 
 LRESULT WM_CAPTURECHANGED (long /*int*/ wParam, long /*int*/ lParam) {
+	// Do not unpress the selected item while its menu is showing
+	// (if we call the super method, the ToolBar window procedure will unpress the item too).
+	if (showingPushItemMenu) return LRESULT.ZERO;
 	LRESULT result = super.WM_CAPTURECHANGED (wParam, lParam);
 	if (result != null) return result;
 	/*
@@ -1334,6 +1338,22 @@ LRESULT WM_KEYDOWN (long /*int*/ wParam, long /*int*/ lParam) {
 			* application the opportunity to cancel the operation.
 			*/
 			return LRESULT.ZERO;
+		case OS.VK_DOWN:
+		case OS.VK_UP:
+			/*
+			 * Menus of SWT.DROPDOWN items are automatically triggered by Windows on the
+			 * UP and DOWN keys. Here we mirror this behavior for PUSH items.
+			 */
+			int itemIndex = (int)/*64*/OS.SendMessage (handle, OS.TB_GETHOTITEM, 0, 0);
+			ToolItem child = getEnabledPushItem (itemIndex);
+			if (child != null) {
+				RECT rect = new RECT ();
+				OS.SendMessage (handle, OS.TB_GETITEMRECT, itemIndex, rect);
+				if (sendItemMenuDetectEvent (child, rect, 0)) {
+					showPushItemMenu (child, rect);
+					return LRESULT.ZERO;
+				}
+			}
 	}
 	return result;
 }
@@ -1346,7 +1366,42 @@ LRESULT WM_KILLFOCUS (long /*int*/ wParam, long /*int*/ lParam) {
 	return super.WM_KILLFOCUS (wParam, lParam);
 }
 
+LRESULT WM_LBUTTONDBLCLK (int /*long*/ wParam, int /*long*/ lParam) {
+	// Handle menu display for push items
+	POINT point = new POINT ();
+	point.x = OS.GET_X_LPARAM (lParam);
+	point.y = OS.GET_Y_LPARAM (lParam);
+	int itemIndex = (int)/*64*/OS.SendMessage (handle, OS.TB_HITTEST, 0, point);
+	ToolItem child = getEnabledPushItem (itemIndex);
+	if (child != null) {
+		RECT rect = new RECT ();
+		OS.SendMessage (handle, OS.TB_GETITEMRECT, itemIndex, rect);
+		if (sendItemMenuDetectEvent (child, rect, 0)) {
+			super.WM_LBUTTONDBLCLK (wParam, lParam);
+			showPushItemMenu (child, rect);
+			return LRESULT.ZERO;
+		}
+	}
+	return super.WM_LBUTTONDBLCLK (wParam, lParam);
+}
+
 LRESULT WM_LBUTTONDOWN (long /*int*/ wParam, long /*int*/ lParam) {
+	// Handle menu display for push items
+	POINT point = new POINT ();
+	point.x = OS.GET_X_LPARAM (lParam);
+	point.y = OS.GET_Y_LPARAM (lParam);
+	int itemIndex = (int)/*64*/OS.SendMessage (handle, OS.TB_HITTEST, 0, point);
+	ToolItem child = getEnabledPushItem (itemIndex);
+	if (child != null) {
+		RECT rect = new RECT ();
+		OS.SendMessage (handle, OS.TB_GETITEMRECT, itemIndex, rect);
+		if (sendItemMenuDetectEvent (child, rect, 0)) {
+			super.WM_LBUTTONDOWN (wParam, lParam);
+			showPushItemMenu (child, rect);
+			return LRESULT.ZERO;
+		}
+	}
+
 	if (ignoreMouse) return null;
 	return super.WM_LBUTTONDOWN (wParam, lParam);
 }
@@ -1513,20 +1568,28 @@ LRESULT wmCommandChild (long /*int*/ wParam, long /*int*/ lParam) {
 }
 
 LRESULT wmNotifyChild (NMHDR hdr, long /*int*/ wParam, long /*int*/ lParam) {
+	System.err.println("CODE " + hdr.code);
 	switch (hdr.code) {
 		case OS.TBN_DROPDOWN:
 			NMTOOLBAR lpnmtb = new NMTOOLBAR ();
 			OS.MoveMemory (lpnmtb, lParam, NMTOOLBAR.sizeof);
 			ToolItem child = items [lpnmtb.iItem];
 			if (child != null) {
-				Event event = new Event ();
-				event.detail = SWT.ARROW;
 				int index = (int)/*64*/OS.SendMessage (handle, OS.TB_COMMANDTOINDEX, lpnmtb.iItem, 0);
 				RECT rect = new RECT ();
 				OS.SendMessage (handle, OS.TB_GETITEMRECT, index, rect);
-				event.x = rect.left;
-				event.y = rect.bottom;
-				child.sendSelectionEvent (SWT.Selection, event, false);
+				if (sendItemMenuDetectEvent (child, rect, SWT.ARROW)) {
+					System.err.println("START");
+					showItemMenu (child, rect);
+					System.err.println("OUCH");
+					return new LRESULT(0);
+				} else {
+					Event event = new Event ();
+					event.detail = SWT.ARROW;
+					event.x = rect.left;
+					event.y = rect.bottom;
+					child.postEvent (SWT.Selection, event);
+				}
 			}
 			break;
 		case OS.NM_CUSTOMDRAW:
@@ -1576,10 +1639,13 @@ LRESULT wmNotifyChild (NMHDR hdr, long /*int*/ wParam, long /*int*/ lParam) {
 						* hot item changes when the user is traversing using the
 						* arrow keys.
 						*/
+						System.out.println("--x1");
 						if (lastArrowId != -1) return LRESULT.ONE;
+						System.out.println("--x2");
 						break;
 					}
 					case OS.HICF_ARROWKEYS:	{
+						System.out.println("--x3");
 			        	RECT client = new RECT ();
 			        	OS.GetClientRect (handle, client);
 			        	int index = (int)/*64*/OS.SendMessage (handle, OS.TB_COMMANDTOINDEX, lpnmhi.idNew, 0);
@@ -1592,6 +1658,13 @@ LRESULT wmNotifyChild (NMHDR hdr, long /*int*/ wParam, long /*int*/ lParam) {
 						break;
 					}
 					default:
+						System.out.println("--x4");
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 						lastArrowId = -1;
 				}
 				if ((lpnmhi.dwFlags & OS.HICF_LEAVING) == 0) {
@@ -1601,6 +1674,71 @@ LRESULT wmNotifyChild (NMHDR hdr, long /*int*/ wParam, long /*int*/ lParam) {
 			break;
 	}
 	return super.wmNotifyChild (hdr, wParam, lParam);
+}
+
+private ToolItem getEnabledPushItem (int itemIndex) {
+	// Inspect non-separator item under the cursor
+	if (itemIndex >= 0) {
+		// Get item instance
+		TBBUTTON button = new TBBUTTON ();
+		OS.SendMessage (handle, OS.TB_GETBUTTON, itemIndex, button);
+		int buttonId = button.idCommand;
+		ToolItem child = items[buttonId];
+		// Only allow menu display for PUSH items
+		final int toolItemStyleMask = SWT.PUSH | SWT.CHECK | SWT.RADIO
+					| SWT.SEPARATOR | SWT.DROP_DOWN;
+		if ((child.style & toolItemStyleMask) == SWT.PUSH) {
+			// Get item state
+			int itemState = (int)/*64*/OS.SendMessage (handle, OS.TB_GETSTATE, buttonId, 0);
+			// Only attempt to show a menu if the item is enabled
+			if ((itemState & OS.TBSTATE_ENABLED) != 0) {
+				return child;
+			}
+		}
+	}
+	return null;
+}
+
+private void showPushItemMenu (ToolItem child, RECT rect) {
+	// Press item
+	int itemState = (int)/*64*/OS.SendMessage (handle, OS.TB_GETSTATE, child.id, 0);
+	itemState |= OS.TBSTATE_PRESSED;
+	OS.SendMessage (handle, OS.TB_SETSTATE, child.id, itemState);
+	// Show menu
+	showingPushItemMenu = true;
+	showItemMenu (child, rect);
+	showingPushItemMenu = false;
+	// Unpress item - reload item state since it may have changed
+	itemState = (int)/*64*/OS.SendMessage (handle, OS.TB_GETSTATE, child.id, 0);
+	itemState &= ~OS.TBSTATE_PRESSED;
+	OS.SendMessage (handle, OS.TB_SETSTATE, child.id, itemState);
+	// If the menu was cancelled by an LBUTTONDOWN event on the control, discard that event.
+	// This allows the menu to be closed on a second click.
+	OS.PeekMessage (new MSG (), handle, OS.WM_LBUTTONDOWN, OS.WM_LBUTTONDOWN, OS.PM_REMOVE);
+	// Force a redraw of the item. Otherwise, if the user cancels the menu by clicking and holding
+	// the left mouse button over the (non-client) title bar of a window
+	// that belongs to this application, the item will only get unpressed after a short delay. 
+	OS.RedrawWindow (handle, rect, 0, OS.RDW_UPDATENOW);
+}
+
+private boolean sendItemMenuDetectEvent (ToolItem child, RECT rect, int detail) {
+	Event event = new Event ();
+	event.detail = detail;
+	event.x = rect.left;
+	event.y = rect.bottom;
+	child.sendEvent (SWT.MenuDetect, event);
+	Menu menu = child.menu;
+	return event.doit && menu != null && !menu.isDisposed ();
+}
+
+private void showItemMenu (ToolItem child, RECT rect) {
+	Menu menu = child.menu;
+	// Without this call, an lbuttondown event that triggers the menu
+	// will not be delivered to EventListeners until after the menu has been closed.
+	display.runDeferredEvents ();
+	OS.MapWindowPoints (handle, 0, rect, 2);
+	menu.setLocation (rect.left, rect.bottom);
+	menu._setVisible (true, rect, OS.TPM_VERTICAL);
 }
 
 }

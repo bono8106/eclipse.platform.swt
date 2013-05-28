@@ -51,47 +51,44 @@ public static void main (String [] args) {
 	coolItem.setMinimumSize(minWidth, coolSize.y);
 	coolItem.setPreferredSize(coolSize);
 	coolItem.setSize(coolSize);
-	coolItem.addSelectionListener(new SelectionAdapter() {
-		public void widgetSelected(SelectionEvent event) {
-			if (event.detail == SWT.ARROW) {
-				CoolItem item = (CoolItem) event.widget;
-				Rectangle itemBounds = item.getBounds ();
-				Point pt = coolBar.toDisplay(new Point(itemBounds.x, itemBounds.y));
-				itemBounds.x = pt.x;
-				itemBounds.y = pt.y;
-				ToolBar bar = (ToolBar) item.getControl ();
-				ToolItem[] tools = bar.getItems ();
+	coolItem.addMenuDetectListener(new MenuDetectListener() {
+		public void menuDetected(MenuDetectEvent event) {
+			CoolItem item = (CoolItem) event.widget;
+			Rectangle itemBounds = item.getBounds ();
+			Point pt = coolBar.toDisplay(new Point(itemBounds.x, itemBounds.y));
+			itemBounds.x = pt.x;
+			itemBounds.y = pt.y;
+			ToolBar bar = (ToolBar) item.getControl ();
+			ToolItem[] tools = bar.getItems ();
+			
+			int i = 0;
+			while (i < tools.length) {
+				Rectangle toolBounds = tools[i].getBounds ();
+				pt = bar.toDisplay(new Point(toolBounds.x, toolBounds.y));
+				toolBounds.x = pt.x;
+				toolBounds.y = pt.y;
 				
-				int i = 0;
-				while (i < tools.length) {
-					Rectangle toolBounds = tools[i].getBounds ();
-					pt = bar.toDisplay(new Point(toolBounds.x, toolBounds.y));
-					toolBounds.x = pt.x;
-					toolBounds.y = pt.y;
-					
-					/* Figure out the visible portion of the tool by looking at the
-					 * intersection of the tool bounds with the cool item bounds. */
-			  		Rectangle intersection = itemBounds.intersection (toolBounds);
-			  		
-					/* If the tool is not completely within the cool item bounds, then it
-					 * is partially hidden, and all remaining tools are completely hidden. */
-			  		if (!intersection.equals (toolBounds)) break;
-			  		i++;
-				}
+				/* Figure out the visible portion of the tool by looking at the
+				 * intersection of the tool bounds with the cool item bounds. */
+				Rectangle intersection = itemBounds.intersection (toolBounds);
 				
-				/* Create a menu with items for each of the completely hidden buttons. */
-				if (chevronMenu != null) chevronMenu.dispose();
-				chevronMenu = new Menu (coolBar);
-				for (int j = i; j < tools.length; j++) {
-					MenuItem menuItem = new MenuItem (chevronMenu, SWT.PUSH);
-					menuItem.setText (tools[j].getText());
-				}
-				
-				/* Drop down the menu below the chevron, with the left edges aligned. */
-				pt = coolBar.toDisplay(new Point(event.x, event.y));
-				chevronMenu.setLocation (pt.x, pt.y);
-				chevronMenu.setVisible (true);
+				/* If the tool is not completely within the cool item bounds, then it
+				 * is partially hidden, and all remaining tools are completely hidden. */
+				if (!intersection.equals (toolBounds)) break;
+				i++;
 			}
+			
+			/* Create a menu with items for each of the completely hidden buttons. */
+			if (chevronMenu != null) chevronMenu.dispose();
+			chevronMenu = new Menu (coolBar);
+			for (int j = i; j < tools.length; j++) {
+				MenuItem menuItem = new MenuItem (chevronMenu, SWT.PUSH);
+				menuItem.setText (tools[j].getText());
+			}
+			
+			/* Drop down the menu below the chevron, with the left edges aligned. */
+			pt = coolBar.toDisplay(new Point(event.x, event.y));
+			item.setMenu(chevronMenu);
 		}
 	});
 

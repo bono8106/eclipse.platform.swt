@@ -17741,6 +17741,18 @@ JNIEXPORT jlong JNICALL OS_NATIVE(TOUCH_1COORD_1TO_1PIXEL)
 }
 #endif
 
+#ifndef NO_TPMPARAMS_1sizeof
+JNIEXPORT jint JNICALL OS_NATIVE(TPMPARAMS_1sizeof)
+	(JNIEnv *env, jclass that)
+{
+	jint rc = 0;
+	OS_NATIVE_ENTER(env, that, TPMPARAMS_1sizeof_FUNC);
+	rc = (jint)TPMPARAMS_sizeof();
+	OS_NATIVE_EXIT(env, that, TPMPARAMS_1sizeof_FUNC);
+	return rc;
+}
+#endif
+
 #ifndef NO_TRACKMOUSEEVENT_1sizeof
 JNIEXPORT jint JNICALL OS_NATIVE(TRACKMOUSEEVENT_1sizeof)
 	(JNIEnv *env, jclass that)
@@ -17891,6 +17903,22 @@ JNIEXPORT jboolean JNICALL OS_NATIVE(TrackPopupMenu)
 fail:
 	if (arg6 && lparg6) setRECTFields(env, arg6, lparg6);
 	OS_NATIVE_EXIT(env, that, TrackPopupMenu_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_TrackPopupMenuEx
+JNIEXPORT jboolean JNICALL OS_NATIVE(TrackPopupMenuEx)
+	(JNIEnv *env, jclass that, jintLong arg0, jint arg1, jint arg2, jint arg3, jintLong arg4, jobject arg5)
+{
+	TPMPARAMS _arg5, *lparg5=NULL;
+	jboolean rc = 0;
+	OS_NATIVE_ENTER(env, that, TrackPopupMenuEx_FUNC);
+	if (arg5) if ((lparg5 = getTPMPARAMSFields(env, arg5, &_arg5)) == NULL) goto fail;
+	rc = (jboolean)TrackPopupMenuEx((HMENU)arg0, arg1, arg2, arg3, (HWND)arg4, lparg5);
+fail:
+	if (arg5 && lparg5) setTPMPARAMSFields(env, arg5, lparg5);
+	OS_NATIVE_EXIT(env, that, TrackPopupMenuEx_FUNC);
 	return rc;
 }
 #endif

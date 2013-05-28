@@ -1704,6 +1704,7 @@ public class OS extends C {
 	public static final int TB_GETROWS = 0x428;
 	public static final int TB_GETSTATE = 0x412;
 	public static final int TB_GETTOOLTIPS = 0x423;
+	public static final int TB_HITTEST = 0x445;
 	public static final int TB_INSERTBUTTON = IsUnicode ? 0x443 : 0x415;
 	public static final int TB_LOADIMAGES = 0x432;
 	public static final int TB_MAPACCELERATOR = 0x0400 + (IsUnicode ? 90 : 78);
@@ -1802,6 +1803,8 @@ public class OS extends C {
 	public static final int TPM_LEFTBUTTON = 0x0;
 	public static final int TPM_RIGHTBUTTON = 0x2;
 	public static final int TPM_RIGHTALIGN = 0x8;
+	public static final int TPM_HORIZONTAL = 0x00;
+	public static final int TPM_VERTICAL = 0x40;
 	public static final String TRACKBAR_CLASS = "msctls_trackbar32"; //$NON-NLS-1$
 	public static final int TRANSPARENT = 0x1;
 	public static final int TREIS_DISABLED = 4;
@@ -2402,6 +2405,7 @@ public static final native int TEXTMETRICW_sizeof ();
 public static final native int TF_DA_COLOR_sizeof ();
 public static final native int TF_DISPLAYATTRIBUTE_sizeof ();
 public static final native int TOOLINFO_sizeof ();
+public static final native int TPMPARAMS_sizeof ();
 public static final native int TOUCHINPUT_sizeof();
 public static final native int TRACKMOUSEEVENT_sizeof ();
 public static final native int TRIVERTEX_sizeof ();
@@ -6913,6 +6917,11 @@ public static final native boolean TrackMouseEvent (TRACKMOUSEEVENT lpEventTrack
  * @param hWnd cast=(HWND)
  */
 public static final native boolean TrackPopupMenu (long /*int*/ hMenu, int uFlags, int x, int y, int nReserved, long /*int*/ hWnd, RECT prcRect);
+/**
+ * @param hMenu cast=(HMENU)
+ * @param hWnd cast=(HWND)
+ */
+public static final native boolean TrackPopupMenuEx (long /*int*/ hMenu, int uFlags, int x, int y, long /*int*/ hWnd, TPMPARAMS lptpm);
 /**
  * @param hWnd cast=(HWND)
  * @param hAccTable cast=(HACCEL)

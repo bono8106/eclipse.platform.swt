@@ -1174,7 +1174,23 @@ LRESULT wmNotifyChild (NMHDR hdr, long /*int*/ wParam, long /*int*/ lParam) {
 					event.x = lpnm.left;
 					event.y = lpnm.bottom;
 				}
-				item.sendSelectionEvent(SWT.Selection, event, false);
+
+				if (sendItemMenuDetectEvent (item, event.x, event.y, SWT.ARROW)) {
+					// Without this call, an lbuttondown event that triggers the menu
+					// will not be delivered to EventListeners until after the menu has been closed.
+					display.runDeferredEvents ();
+					RECT rect = new RECT ();
+					rect.top = lpnm.top;
+					rect.bottom = lpnm.bottom;
+					rect.left = lpnm.left;
+					rect.right = lpnm.right;
+					showItemMenu (item, rect);
+					// If the menu was cancelled by an LBUTTONDOWN event on the control, discard that event.
+					// This allows the menu to be closed on a second click.
+					OS.PeekMessage (new MSG (), handle, OS.WM_LBUTTONDOWN, OS.WM_LBUTTONDOWN, OS.PM_REMOVE);
+				} else {
+					item.sendSelectionEvent(SWT.Selection, event, false);
+				}
 			}
 			break;
 		}
@@ -1202,4 +1218,33 @@ LRESULT wmNotifyChild (NMHDR hdr, long /*int*/ wParam, long /*int*/ lParam) {
 	}
 	return super.wmNotifyChild (hdr, wParam, lParam);
 }
+
+private void showItemMenu (CoolItem child, RECT rect) {
+	Menu menu = child.menu;
+	OS.MapWindowPoints (handle, 0, rect, 2);
+	int x, y;
+	int menuPosition;
+	if ((style & SWT.VERTICAL) != 0) {
+		x = rect.right;
+		y = rect.top;
+		menuPosition = OS.TPM_HORIZONTAL;
+	} else {
+		x = rect.left;
+		y = rect.bottom;
+		menuPosition = OS.TPM_VERTICAL;
+	}
+	menu.setLocation (x, y);
+	menu._setVisible (true, rect, menuPosition);
+}
+
+private boolean sendItemMenuDetectEvent (CoolItem child, int x, int y, int detail) {
+	Event event = new Event ();
+	event.detail = detail;
+	event.x = x;
+	event.y = y;
+	child.sendEvent (SWT.MenuDetect, event);
+	Menu menu = child.menu;
+	return event.doit && menu != null && !menu.isDisposed ();
+}
+
 }

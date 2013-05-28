@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -8989,6 +8989,46 @@ void setTOUCHINPUTFields(JNIEnv *env, jobject lpObject, TOUCHINPUT *lpStruct)
 	(*env)->SetIntLongField(env, lpObject, TOUCHINPUTFc.dwExtraInfo, (jintLong)lpStruct->dwExtraInfo);
 	(*env)->SetIntField(env, lpObject, TOUCHINPUTFc.cxContact, (jint)lpStruct->cxContact);
 	(*env)->SetIntField(env, lpObject, TOUCHINPUTFc.cyContact, (jint)lpStruct->cyContact);
+}
+#endif
+
+#ifndef NO_TPMPARAMS
+typedef struct TPMPARAMS_FID_CACHE {
+	int cached;
+	jclass clazz;
+	jfieldID cbSize, rcExclude;
+} TPMPARAMS_FID_CACHE;
+
+TPMPARAMS_FID_CACHE TPMPARAMSFc;
+
+void cacheTPMPARAMSFields(JNIEnv *env, jobject lpObject)
+{
+	if (TPMPARAMSFc.cached) return;
+	TPMPARAMSFc.clazz = (*env)->GetObjectClass(env, lpObject);
+	TPMPARAMSFc.cbSize = (*env)->GetFieldID(env, TPMPARAMSFc.clazz, "cbSize", "I");
+	TPMPARAMSFc.rcExclude = (*env)->GetFieldID(env, TPMPARAMSFc.clazz, "rcExclude", "Lorg/eclipse/swt/internal/win32/RECT;");
+	TPMPARAMSFc.cached = 1;
+}
+
+TPMPARAMS *getTPMPARAMSFields(JNIEnv *env, jobject lpObject, TPMPARAMS *lpStruct)
+{
+	if (!TPMPARAMSFc.cached) cacheTPMPARAMSFields(env, lpObject);
+	lpStruct->cbSize = (*env)->GetIntField(env, lpObject, TPMPARAMSFc.cbSize);
+	{
+	jobject lpObject1 = (*env)->GetObjectField(env, lpObject, TPMPARAMSFc.rcExclude);
+	if (lpObject1 != NULL) getRECTFields(env, lpObject1, &lpStruct->rcExclude);
+	}
+	return lpStruct;
+}
+
+void setTPMPARAMSFields(JNIEnv *env, jobject lpObject, TPMPARAMS *lpStruct)
+{
+	if (!TPMPARAMSFc.cached) cacheTPMPARAMSFields(env, lpObject);
+	(*env)->SetIntField(env, lpObject, TPMPARAMSFc.cbSize, (jint)lpStruct->cbSize);
+	{
+	jobject lpObject1 = (*env)->GetObjectField(env, lpObject, TPMPARAMSFc.rcExclude);
+	if (lpObject1 != NULL) setRECTFields(env, lpObject1, &lpStruct->rcExclude);
+	}
 }
 #endif
 

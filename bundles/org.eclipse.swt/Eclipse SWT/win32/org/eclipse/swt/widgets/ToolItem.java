@@ -43,6 +43,7 @@ public class ToolItem extends Item {
 	String toolTipText;
 	Image disabledImage, hotImage;
 	Image disabledImage2;
+	Menu menu;
 	int id;
 	short cx;
 
@@ -126,6 +127,34 @@ public ToolItem (ToolBar parent, int style, int index) {
 	super (parent, checkStyle (style));
 	this.parent = parent;
 	parent.createItem (this, index);
+}
+
+/**
+ * Adds the listener to the collection of listeners who will
+ * be notified when the platform-specific drop-down menu trigger
+ * has occurred, by sending it one of the messages defined in
+ * the <code>MenuDetectListener</code> interface.
+ *
+ * @param listener the listener which should be notified
+ *
+ * @exception IllegalArgumentException <ul>
+ *    <li>ERROR_NULL_ARGUMENT - if the listener is null</li>
+ * </ul>
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @see MenuDetectListener
+ * @see #removeMenuDetectListener
+ *
+ * @since 3.102
+ */
+public void addMenuDetectListener (MenuDetectListener listener) {
+	checkWidget ();
+	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
+	TypedListener typedListener = new TypedListener (listener);
+	addListener (SWT.MenuDetect, typedListener);
 }
 
 /**
@@ -322,6 +351,26 @@ public Image getHotImage () {
 }
 
 /**
+ * Returns the receiver's drop-down menu if it has one, or null 
+ * if it does not.
+ * <p>
+ * The drop-down menu is activated when the arrow of an {@link SWT#DROP_DOWN}-styled receiver is pressed.
+ * </p>
+ * 
+ * @return the receiver's drop-down menu
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @since 3.102
+ */
+public Menu getMenu () {
+	checkWidget();
+	return menu;
+}
+
+/**
  * Returns the receiver's parent, which must be a <code>ToolBar</code>.
  *
  * @return the receiver's parent
@@ -432,6 +481,10 @@ boolean isTabGroup () {
 void releaseWidget () {
 	super.releaseWidget ();
 	releaseImages ();
+	if (menu != null && !menu.isDisposed ()) {
+		menu.dispose ();
+	}
+	menu = null;
 	control = null;
 	toolTipText = null;
 	disabledImage = hotImage = null;
@@ -469,6 +522,33 @@ void releaseImages () {
 		if (hotImageList != null) hotImageList.put (info.iImage, null);
 		if (disabledImageList != null) disabledImageList.put (info.iImage, null);
 	}
+}
+
+/**
+ * Removes the listener from the collection of listeners who will
+ * be notified when the platform-specific drop-down menu trigger has
+ * occurred.
+ *
+ * @param listener the listener which should no longer be notified
+ *
+ * @exception IllegalArgumentException <ul>
+ *    <li>ERROR_NULL_ARGUMENT - if the listener is null</li>
+ * </ul>
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @see MenuDetectListener
+ * @see #addMenuDetectListener
+ *
+ * @since 3.102
+ */
+public void removeMenuDetectListener (MenuDetectListener listener) {
+	checkWidget ();
+	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
+	if (eventTable == null) return;
+	eventTable.unhook (SWT.MenuDetect, listener);
 }
 
 /**
@@ -706,6 +786,39 @@ public void setImage (Image image) {
 	if (image != null && image.isDisposed()) error(SWT.ERROR_INVALID_ARGUMENT);
 	super.setImage (image);
 	updateImages (getEnabled () && parent.getEnabled ());
+}
+
+/**
+ * Sets the receiver's drop-down menu to the argument, which may be 
+ * null indicating that no drop-down menu should be displayed.
+ * <p>
+ * If this property is null a drop-down menu can still be displayed manually by adding a
+ * {@link SelectionListener} to the receiver and handling{@link SWT#ARROW} events.
+ * <p>
+ * The drop-down menu is activated when the arrow of an {@link SWT#DROP_DOWN}-styled
+ * receiver or any portion of an {@link SWT#PUSH}-styled receiver is pressed.
+ * </p>
+ * 
+ * @param menu the drop-down menu to be displayed when the receiver's arrow is pressed
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @since 3.102
+ */
+public void setMenu (Menu menu) {
+	checkWidget();
+	if (menu != null) {
+		if (menu.isDisposed()) SWT.error(SWT.ERROR_INVALID_ARGUMENT);
+		if ((menu.style & SWT.POP_UP) == 0) {
+			error (SWT.ERROR_MENU_NOT_POP_UP);
+		}
+		if (menu.parent != parent.menuShell ()) {
+			error (SWT.ERROR_INVALID_PARENT);
+		}
+	}
+	this.menu = menu;
 }
 
 boolean setRadioSelection (boolean value) {

@@ -37,6 +37,7 @@ import org.eclipse.swt.events.*;
 public class CoolItem extends Item {
 	CoolBar parent;
 	Control control;
+	Menu menu;
 	int id;
 	boolean ideal, minimum;
 
@@ -112,6 +113,34 @@ public CoolItem (CoolBar parent, int style, int index) {
 	super (parent, style);
 	this.parent = parent;
 	parent.createItem (this, index);
+}
+
+/**
+ * Adds the listener to the collection of listeners who will
+ * be notified when the platform-specific chevron menu trigger
+ * has occurred, by sending it one of the messages defined in
+ * the <code>MenuDetectListener</code> interface.
+ *
+ * @param listener the listener which should be notified
+ *
+ * @exception IllegalArgumentException <ul>
+ *    <li>ERROR_NULL_ARGUMENT - if the listener is null</li>
+ * </ul>
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @see MenuDetectListener
+ * @see #removeMenuDetectListener
+ *
+ * @since 3.102
+ */
+public void addMenuDetectListener (MenuDetectListener listener) {
+	checkWidget ();
+	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
+	TypedListener typedListener = new TypedListener (listener);
+	addListener (SWT.MenuDetect, typedListener);
 }
 
 /**
@@ -282,6 +311,23 @@ public Control getControl () {
 }
 
 /**
+ * Returns the receiver's chevron menu if it has one, or null 
+ * if it does not.
+ * 
+ * @return the receiver's drop-down menu
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @since 3.102
+ */
+public Menu getMenu () {
+	checkWidget();
+	return menu;
+}
+
+/**
  * Returns the receiver's parent, which must be a <code>CoolBar</code>.
  *
  * @return the receiver's parent
@@ -294,6 +340,14 @@ public Control getControl () {
 public CoolBar getParent () {
 	checkWidget ();
 	return parent;
+}
+
+void releaseWidget () {
+	super.releaseWidget ();
+	if (menu != null && !menu.isDisposed ()) {
+		menu.dispose ();
+	}
+	menu = null;
 }
 
 void releaseHandle () {
@@ -357,6 +411,35 @@ public void setControl (Control control) {
 		int flags = OS.SWP_NOSIZE | OS.SWP_NOMOVE | OS.SWP_NOACTIVATE; 
 		SetWindowPos (hwndChild, hwndAbove, 0, 0, 0, 0, flags);
 	}
+}
+
+/**
+ * Sets the receiver's chevron menu to the argument, which may be 
+ * null indicating that no drop-down menu should be displayed.
+ * <p>
+ * If this property is null a drop-down menu can still be displayed manually by adding a
+ * {@link SelectionListener} to the receiver and handling{@link SWT#ARROW} events.
+ * 
+ * @param menu the drop-down menu to be displayed when the receiver's arrow is pressed
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @since 3.102
+ */
+public void setMenu (Menu menu) {
+	checkWidget();
+	if (menu != null) {
+		if (menu.isDisposed()) SWT.error(SWT.ERROR_INVALID_ARGUMENT);
+		if ((menu.style & SWT.POP_UP) == 0) {
+			error (SWT.ERROR_MENU_NOT_POP_UP);
+		}
+		if (menu.parent != parent.menuShell ()) {
+			error (SWT.ERROR_INVALID_PARENT);
+		}
+	}
+	this.menu = menu;
 }
 
 /**
@@ -685,6 +768,33 @@ void setWrap(boolean wrap) {
 		rbBand.fStyle &= ~OS.RBBS_BREAK;
 	}
 	OS.SendMessage (hwnd, OS.RB_SETBANDINFO, index, rbBand);
+}
+
+/**
+ * Removes the listener from the collection of listeners who will
+ * be notified when the platform-specific chevron menu trigger has
+ * occurred.
+ *
+ * @param listener the listener which should no longer be notified
+ *
+ * @exception IllegalArgumentException <ul>
+ *    <li>ERROR_NULL_ARGUMENT - if the listener is null</li>
+ * </ul>
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @see MenuDetectListener
+ * @see #addMenuDetectListener
+ *
+ * @since 3.102
+ */
+public void removeMenuDetectListener (MenuDetectListener listener) {
+	checkWidget ();
+	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
+	if (eventTable == null) return;
+	eventTable.unhook (SWT.MenuDetect, listener);
 }
 
 /**

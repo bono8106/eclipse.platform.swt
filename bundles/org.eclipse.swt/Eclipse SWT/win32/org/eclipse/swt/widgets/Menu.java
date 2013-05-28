@@ -224,6 +224,10 @@ Menu (Decorations parent, int style, long /*int*/ handle) {
 }
 
 void _setVisible (boolean visible) {
+	_setVisible(visible, null, 0);
+}
+
+void _setVisible (boolean visible, RECT excludeRect, int extraFlags) {
 	if ((style & (SWT.BAR | SWT.DROP_DOWN)) != 0) return;
 	long /*int*/ hwndParent = parent.handle;
 	if (visible) {
@@ -234,6 +238,7 @@ void _setVisible (boolean visible) {
 			flags &= ~OS.TPM_RIGHTALIGN;
 			if ((style & SWT.LEFT_TO_RIGHT) != 0) flags |= OS.TPM_RIGHTALIGN;
 		}
+		flags |= extraFlags;
 		int nX = x, nY = y;
 		if (!hasLocation) {
 			int pos = OS.GetMessagePos ();
@@ -254,7 +259,15 @@ void _setVisible (boolean visible) {
 		* the case when TrackPopupMenu() fails and the number of items in
 		* the menu is zero and issue a fake WM_MENUSELECT.
 		*/
-		boolean success = OS.TrackPopupMenu (handle, flags, nX, nY, 0, hwndParent, null);
+		boolean success;
+		if (excludeRect == null) {
+			success = OS.TrackPopupMenu (handle, flags, nX, nY, 0, hwndParent, null);
+		} else {
+			TPMPARAMS lptpm = new TPMPARAMS();
+			lptpm.cbSize = TPMPARAMS.sizeof;
+			lptpm.rcExclude = excludeRect;
+			success = OS.TrackPopupMenuEx (handle, flags, nX, nY, hwndParent, lptpm);
+		}
 		if (!success && GetMenuItemCount (handle) == 0) {
 			OS.SendMessage (hwndParent, OS.WM_MENUSELECT, OS.MAKEWPARAM (0, 0xFFFF), 0);
 		}
